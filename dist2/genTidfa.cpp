@@ -17,8 +17,6 @@
 #include <time.h>
 #include <sys/timeb.h>
 
-bool kdebug = false;
-
 //New state
 #define NEW_DFA_STATE_NUM 100000
 unsigned char tidfa_newtr[NEW_DFA_STATE_NUM][256];

@@ -135,7 +135,7 @@ struct tsNode {
 	state x;
 	int matches;
 	int tidfa_q;   //use to find relevant tidfa.
-	//May be not need to consider the source. Just consider destination state(e.g. dfa_q, dfa_id), need other variable(e.g. dfa_best_q...) ??????? FIX ME!!
+	//Just consider destination state(e.g. dfa_q, dfa_id), need other variable(e.g. dfa_best_q...) ??????? FIX ME!!
 	tsNode *next;
 };
 tsNode *tidfaState[NEW_DFA_STATE_NUM];
