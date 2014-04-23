@@ -365,11 +365,10 @@ int main(int argc, char** argv) {
 	printf("---------------run_fs function---------\n");
 	matches = 0;
 	state st1;
-	for (int j = 0; j < strlen(s); j++) {
+	for (int j = 0; j < strlen(s); j++)
 		run_fs(s[j], st1);
-		}
 	printState(st1);
 	
-printf("matches=%d\n", matches);
+	printf("matches=%d\n", matches);
 	return 0;
 }
