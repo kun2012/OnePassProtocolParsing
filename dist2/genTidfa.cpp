@@ -17,7 +17,6 @@
 #include <time.h>
 #include <sys/timeb.h>
 
-//size_t bytes_processed = 0;
 bool kdebug = false;
 
 
@@ -27,39 +26,10 @@ unsigned char tidfa_newtr[NEW_DFA_STATE_NUM][256];
 int new_tidfa_accept[NEW_DFA_STATE_NUM];
 int father[NEW_DFA_STATE_NUM];
 
-//Caculate the hash values.
-#define MAX_VALUE 1000000
-
-#define BIG_PRIME 999983
-#define MAX_HASH_TABLE 1000000
-
 int getfa(int x) {
 	if (x == father[x]) return x;
 	father[x] = getfa(father[x]);
 	return father[x];
-}
-
-bool isStateEqual(state &x, state &y, int xtidfa_q, int ytidfa_q, int xmatches, int ymatches) { //Just compare dfa state and lpdfa state
-	if (
-		//getfa(xtidfa_q) == getfa(ytidfa_q)  // equal if copy state
-		xtidfa_q == ytidfa_q ///// should not use father state
-		&& x.q == y.q   //dfa_id
-		&& x.dfa_q == y.dfa_q 
-		/*
-		&& x.v0 == y.v0 && 
-		x.v1 == y.v1 && 
-		x.v2 == y.v2 &&
-		x.v3 == y.v3 &&
-		x.v4 == y.v4 &&
-		x.v5 == y.v5 &&
-		x.v6 == y.v6 &&
-		x.v7 == y.v7 &&
-		x.v8 == y.v8 &&
-		x.rerun_temp == y.rerun_temp */
-		//&& xmatches == ymatches  //Don't want to include matches.
-		)
-		return true;
-	return false;
 }
 
 bool isStateResultEqual(state &x, state &y) {
@@ -72,7 +42,6 @@ bool isStateResultEqual(state &x, state &y) {
 		x.v7 == y.v7 &&
 		x.v8 == y.v8 &&
 		x.rerun_temp == y.rerun_temp
-		//&& x.q == y.q && x.dfa_q == y.dfa_q //FIX ME
 		)
 		return true;
 	return false;
@@ -135,25 +104,6 @@ int getStateQId(state& x) {
 
 }
 
-int getHashValue(state& x, int xtidfa_q, int xmatches) {
-	long long t = 0;
-	//t = (t + getfa(xtidfa_q)) % BIG_PRIME;   //equal if copy state
-	t = (t + xtidfa_q) % BIG_PRIME;   //not use father id
-	t = (t * (long long)MAX_VALUE + x.dfa_q) % BIG_PRIME;
-	t = (t * (long long)MAX_VALUE + getStateQId(x)) % BIG_PRIME;
-	/*
-	t = (t * (long long)MAX_VALUE + x.v0) % BIG_PRIME;
-	t = (t * (long long)MAX_VALUE + x.v1) % BIG_PRIME;
-	t = (t * (long long)MAX_VALUE + x.v2) % BIG_PRIME;
-	t = (t * (long long)MAX_VALUE + x.v3) % BIG_PRIME;
-	t = (t * (long long)MAX_VALUE + x.v4) % BIG_PRIME;
-	t = (t * (long long)MAX_VALUE + x.v5) % BIG_PRIME;
-	t = (t * (long long)MAX_VALUE + x.v6) % BIG_PRIME;
-	t = (t * (long long)MAX_VALUE + x.v7) % BIG_PRIME;
-	t = (t * (long long)MAX_VALUE + x.v8) % BIG_PRIME;*/
-	return (int)t;
-}
-
 void printState(state &x) {
 	printf("dfa_id = %d\t", getStateQId(x));
 	printf("dfa_q = %d\t", x.dfa_q);
@@ -182,68 +132,28 @@ bool variablesExceed(state& v) {
 	return false;
 }
 
-struct hashNode {
-	state st;
-	int tidfa_q, matches;
-	struct hashNode *next;
-};
-
 struct tsNode {
 	state x;
 	int matches;
 	int tidfa_q;   //use to find relevant tidfa.
-	//Different result should compare from the same source.....
-	//int src_dfa_id;
-	//int src_dfa_q;
-	
 	//May be not need to consider the source. Just consider destination state(e.g. dfa_q, dfa_id), need other variable(e.g. dfa_best_q...) ??????? FIX ME!!
 	//just get the values in x.
-	
 	tsNode *next;
 };
 tsNode *tidfaState[NEW_DFA_STATE_NUM];
-
-struct hashNode *htable[MAX_HASH_TABLE];
 
 struct stateNode {
 	state st;
 	int tidfa_q, matches;
 };
-stateNode f[100000];
 
-bool isInTable(int key, stateNode& x) {
-	struct hashNode *t = htable[key];
-	
-	while(t != NULL) {
-	
-		if(isStateEqual(x.st, t->st, x.tidfa_q, t->tidfa_q, x.matches, t->matches)) return true;
-		t = t->next;
-	}
-	return false;
-}
+stateNode f[NEW_DFA_STATE_NUM];
 
-int addToTable(stateNode &x) {
-	int key = getHashValue(x.st, x.tidfa_q, x.matches);
-	if (isInTable(key, x)) return -1;
-	struct hashNode *t;
-	t = new hashNode;
-	t->st = x.st;
-	t->tidfa_q = x.tidfa_q;
-	t->matches = x.matches;
-	t->next = htable[key];
-	htable[key] = t;
-	return 0;
-}
-
-tsNode* findtiState(int k, stateNode& v//, int u_dfa_id, int u_dfa_q
-) {
-
+tsNode* findtiState(int k, stateNode& v) {
 	tsNode *q = tidfaState[k];
 	while (q != NULL) {
 		if ((q->matches == v.matches) && isStateResultEqual(q->x, v.st)
-			&& q->x.q == v.st.q && q->x.dfa_q == v.st.dfa_q  //Compare the state id.
-			//&& q->src_dfa_q == u_dfa_q && q->src_dfa_id == u_dfa_id
-			) {
+			&& q->x.q == v.st.q && q->x.dfa_q == v.st.dfa_q) { //Compare the state id.
 			return q;
 			}
 		q = q->next;
@@ -260,16 +170,11 @@ void printStateNode(stateNode &p) {
 	printf("----------------------------------\n");
 }
 
-void insert_tsNode(tsNode *&p, state st, int mch, int q// , int u_dfa_id, int u_dfa_q
-) {
+void insert_tsNode(tsNode *&p, state st, int mch, int q) {
 	tsNode *tmp = new tsNode;
 	tmp->x = st;
 	tmp->matches = mch;
 	tmp->tidfa_q = q;
-	
-	//tmp->src_dfa_id = u_dfa_id;
-	//tmp->src_dfa_q = u_dfa_q;
-	
 	tmp->next = p;
 	p = tmp;
 }
@@ -280,25 +185,12 @@ inline void run_fs(char ch, state& st) {
 	st.fdpos = st.flow_data_length; //Some times st.fdpos will be really big..... FIX ME!!!!!
     st.flow_data_length = st.flow_data_length + 1;
     
-    //char input_ch[st.flow_data_length];
-    //for (int i = 0; i < st.fdpos; i++)
-    	//input_ch[i] = st.flow_data[i];
     input_string[st.fdpos] = ch;
     
     st.flow_data = (const u_char*)input_string;
 	
   while (st.fdpos < st.flow_data_length && st.q != NULL)
     CALL_MEMBER_FN(st, st.q)();
-    /*
-  if (st.fdpos < st.flow_data_length) {
-    bytes_processed += st.fdpos;
-  } else {
-    st.base_pos += st.flow_data_length;
-    st.fdpos -= st.flow_data_length;
-    st.dfa_best_pos -= st.flow_data_length;
-    if (st.dfa_best_pos < 0) { printf("MAYBE NEED LAST PACKET\n"); }
-    bytes_processed += st.flow_data_length;
-  }*/
 }
 
 inline void run_string(char s[], state& st) {
@@ -334,19 +226,10 @@ void reshape() {
 	int lo = 0, hi = 0;
 	f[lo].tidfa_q = 0;
 	f[lo].matches = 0;
-	addToTable(f[lo]);
 	
 	while(lo <= hi) {
 		stateNode u = f[lo];
-		printStateNode(u);
-		if (lo == 59) kdebug = true;
-		else kdebug = false;
-		
-		if (kdebug) {
-			printStateNode(u);
-			printf("%s\n", u.st.flow_data);
-			printf("%d\n", u.st.flow_data_length);
-		}
+		//printStateNode(u);
 		
 		for (int i = 0; i < 256; i++) {
 			stateNode v = u;
@@ -364,11 +247,6 @@ void reshape() {
 			
 			v.tidfa_q = new_tidfa_q; 
 			run_fs(i, v.st);
-			/*
-			if (v.st.dfa_q == 1) {
-				continue; //prune the self-recursive state of CA
-			}*/
-			
 			
 			v.matches = matches;
 			
@@ -384,17 +262,13 @@ void reshape() {
 
 			if (tidfaState[getfa(v.tidfa_q)] == NULL) {
 				
-				insert_tsNode(tidfaState[getfa(v.tidfa_q)], v.st, matches, v.tidfa_q//, u_dfa_id, u_dfa_q
-				);
+				insert_tsNode(tidfaState[getfa(v.tidfa_q)], v.st, matches, v.tidfa_q);
 
 			} else {
-			//if (kdebug && i == 'T') { printf("infind\n"); }
-				tsNode *item = findtiState(getfa(v.tidfa_q), v//, u_dfa_id, u_dfa_q
-				);
+				tsNode *item = findtiState(getfa(v.tidfa_q), v);
 				if (item == NULL) {
 
-					insert_tsNode(tidfaState[getfa(v.tidfa_q)], v.st, matches, tidfa_num//, u_dfa_id, u_dfa_q
-					); //this should be tidfa_num not v.tidfa_q
+					insert_tsNode(tidfaState[getfa(v.tidfa_q)], v.st, matches, tidfa_num); //this should be tidfa_num not v.tidfa_q
 
 					father[tidfa_num] = v.tidfa_q;
 				
@@ -416,24 +290,16 @@ void reshape() {
 
 				}
 			}
-			printf("-----i=%d-----v--getfa(tidfa)=%d-\n", i, getfa(v.tidfa_q));
-			printStateNode(v);
+			//printf("-----i=%d-----v--getfa(tidfa)=%d-\n", i, getfa(v.tidfa_q));
+			//printStateNode(v);
 
 			if (new_tidfa_accept[v.tidfa_q] != -1) {
-				printf("ACCEPT state.\n");
+				//printf("ACCEPT state.\n");
 				continue;
 			}
-			
-			/*  Do not need this hash function. May be wrong. FIX ME!!!!!!!!!!!!!!!
-			if (addToTable(v) == -1) {
-				continue;
-			}*/
-			
-
 			f[++hi] = v;
 		}
-		
-		printf("\n%d      %d\n", lo, tidfa_num);
+		//printf("\n%d      %d\n", lo, tidfa_num);
 		lo++;
 		if (lo > 59) break;
 	}
@@ -471,7 +337,6 @@ int main(int argc, char** argv) {
 		}
 	}
 	
-	//printf("\n----tidfa=%d-----\n", p);
 	if (http_accept) i++;
 	printf("Tidfa accept state = %d\n", p);
 	printf("Character consump = %d\n", i);
@@ -481,9 +346,7 @@ int main(int argc, char** argv) {
 		if (t->tidfa_q == p) break;
 		t = t->next;
 	}
-	//printf("dfa stop at len=%d\n", i);
-	
-	//printState(t->x);
+
 	matches = t->matches;
 	run_string(s + i, t->x);
 	printState(t->x);
@@ -497,16 +360,15 @@ int main(int argc, char** argv) {
   	while (st.fdpos < st.flow_data_length && st.q != NULL)
 		CALL_MEMBER_FN(st, st.q)();
 	printState(st);
-printf("matches=%d\n", matches);
+	printf("matches=%d\n", matches);
 
 	printf("---------------run_fs function---------\n");
 	matches = 0;
 	state st1;
-	for (int j = 0; j < strlen(s); j++) {
+	for (int j = 0; j < strlen(s); j++)
 		run_fs(s[j], st1);
-		}
 	printState(st1);
 	
-printf("matches=%d\n", matches);
+	printf("matches=%d\n", matches);
 	return 0;
 }
