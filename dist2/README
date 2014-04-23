@@ -1,0 +1,28 @@
+Included in this package are:
+
+ns_compile
+  compile a flowsifter protocol grammar and extraction grammar into
+  fs_lib.h for testing compiled CA
+
+fs_main.cpp
+  uses fs_lib.h to parse a .pcap file
+
+fs_single.cpp
+  uses fs_lib.h to parse a file as a single flow
+
+bench-upac
+  other tests on flowsifter using a simulated automaton; also includes
+  UltraPAC's HTTP parser
+
+Forensic_challenge_4.pcap
+  a packet trace from the honeynet project:
+  http://www.honeynet.org/challenges/2010_4_voip
+
+http.pro
+  A HTTP protocol grammar
+
+extr.ca
+  An extraction grammar for HTTP, extracts URLs and header fields and values
+
+Makefile
+  Automates using http.pro+extr.ca on Forensic_challenge_4.pcap

@@ -1,0 +1,12 @@
+HTTP/1.1 200 OK
+Vary: Accept-Encoding
+Content-Encoding: gzip
+Content-Type: text/javascript; charset=UTF-8
+Last-Modified: Fri, 10 Jan 2014 01:37:17 GMT
+Date: Fri, 10 Jan 2014 02:23:12 GMT
+Expires: Sat, 10 Jan 2015 02:23:12 GMT
+X-Content-Type-Options: nosniff
+Server: sffe
+Content-Length: 120442
+X-XSS-Protection: 1; mode=block
+Cache-Control: public, max-age=31536000

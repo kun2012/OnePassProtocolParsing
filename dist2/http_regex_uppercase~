@@ -1,0 +1,1 @@
+HTTP/(0\.9|1\.0|1\.1) [1-5][0-9][0-9] [\x09-\x0d -~]*(Connection:|Content-Type:|Content-length:|Date:)|POST [\x09-\x0d -~]* HTTP/[01]\.[019]
