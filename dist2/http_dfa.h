@@ -3,7 +3,7 @@
 using namespace std;
 
 int tidfa_num = 18;
-const unsigned char tidfa[4608] = {
+const int tidfa[4608] = {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,

@@ -3,7 +3,8 @@ HTTP1 -> HTTP_START1 [bodychunked := 0; bodylength := 0]
 HTTP1 -> ;
 
 #Response
-HTTP_START1 -> VERSION SP STATUS SP TEXT CRLF;
+#HTTP_START1 -> VERSION SP STATUS SP TEXT CRLF;
+HTTP_START1 -> VERSION SP //[statusnum := getnum()] SP TEXT CRLF;
 #Request
 HTTP_START1 10 -> TOKEN SP token(URL) SP VERSION CRLF;
 

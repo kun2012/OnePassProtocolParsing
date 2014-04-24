@@ -19,7 +19,7 @@
 
 //New state
 #define NEW_DFA_STATE_NUM 100000
-unsigned char tidfa_newtr[NEW_DFA_STATE_NUM][256];
+int tidfa_newtr[NEW_DFA_STATE_NUM][256];
 int new_tidfa_accept[NEW_DFA_STATE_NUM];
 int father[NEW_DFA_STATE_NUM];
 
@@ -38,6 +38,7 @@ bool isStateResultEqual(state &x, state &y) {
 		x.v6 == y.v6 &&
 		x.v7 == y.v7 &&
 		x.v8 == y.v8 &&
+		x.v9 == y.v9 &&
 		x.rerun_temp == y.rerun_temp
 		)
 		return true;
@@ -68,6 +69,7 @@ int getStateQId(state& x) {
 	if (x.q == &state::DFA18) return 18;
 	if (x.q == &state::DFA19) return 19;
 	if (x.q == &state::DFA20) return 20;
+	if (x.q == &state::DFA21) return 21;
 	
 	if (x.q == &state::CA0) return 100;
 	if (x.q == &state::CA1) return 101;
@@ -98,10 +100,14 @@ int getStateQId(state& x) {
 	if (x.q == &state::CA26) return 126;
 	if (x.q == &state::CA27) return 127;
 	if (x.q == &state::CA28) return 128;
+	if (x.q == &state::CA29) return 129;
 	
 	if (x.q == &state::Act0) return 200;
 	if (x.q == &state::Act1) return 201;
 	if (x.q == &state::Act2) return 202;
+	if (x.q == &state::Act3) return 203;
+	
+	return 9999;
 
 }
 
@@ -118,6 +124,7 @@ void printState(state &x) {
 	if (x.v6 != 0) printf("v6=%d\n", x.v6);
 	if (x.v7 != 0) printf("v7=%d\n", x.v7);
 	if (x.v8 != 0) printf("v8=%d\n", x.v8);
+	if (x.v9 != 0) printf("v9=%d\n", x.v9);
 }
 
 bool variablesExceed(state& v) {
@@ -130,6 +137,7 @@ bool variablesExceed(state& v) {
 	if (v.v6 > 1) return true;
 	if (v.v7 > 0) return true;
 	if (v.v8 > 0) return true;
+	if (v.v9 > 599) return true;
 	return false;
 }
 
@@ -226,10 +234,10 @@ void reshape() {
 	int lo = 0, hi = 0;
 	f[lo].tidfa_q = 0;
 	f[lo].matches = 0;
-	
+	bool kdebug = false;
 	while(lo <= hi) {
 		stateNode u = f[lo];
-		//printStateNode(u);
+		if (kdebug) printStateNode(u);
 		
 		for (int i = 0; i < 256; i++) {
 			stateNode v = u;
@@ -249,9 +257,7 @@ void reshape() {
 			run_fs(i, v.st);
 			
 			v.matches = matches;
-			
 			if (v.st.q == NULL) continue;
-			
 			if (variablesExceed(v.st)) {
 				
 				printf("Variable Exceed!!!\n");
@@ -290,18 +296,19 @@ void reshape() {
 
 				}
 			}
-			//printf("-----i=%d-----v--getfa(tidfa)=%d-\n", i, getfa(v.tidfa_q));
-			//printStateNode(v);
-
+			if (kdebug) {
+			printf("-----i=%d-----v--getfa(tidfa)=%d-\n", i, getfa(v.tidfa_q));
+			printStateNode(v);
+			printf("hhahah = %d", tidfa_newtr[v.tidfa_q][48]);
+			}
 			if (new_tidfa_accept[v.tidfa_q] != -1) {
-				//printf("ACCEPT state.\n");
+				if (kdebug) printf("ACCEPT state.\n");
 				continue;
 			}
 			f[++hi] = v;
 		}
-		//printf("\n%d      %d\n", lo, tidfa_num);
+		if (kdebug) printf("\n%d      %d\n", lo, tidfa_num);
 		lo++;
-		if (lo > 59) break;
 	}
 	
 	printf("-------------------------^-^---------------------------------------\n");
@@ -315,7 +322,14 @@ int main(int argc, char** argv) {
 		printf("Usage: ./genTidfa parseFile\n");
 		return 0;
 	}
+	
+	int num1 = tidfa_num;
+	
 	reshape();
+	
+	int num2 = tidfa_num;
+	
+	printf("%d new states are needed!\n", num2 - num1);
 	
 	FILE *fin = fopen(argv[1], "r");
 	
@@ -336,7 +350,6 @@ int main(int argc, char** argv) {
 			break;
 		}
 	}
-	
 	if (http_accept) i++;
 	printf("Tidfa accept state = %d\n", p);
 	printf("Character consump = %d\n", i);
@@ -349,6 +362,7 @@ int main(int argc, char** argv) {
 
 	matches = t->matches;
 	run_string(s + i, t->x);
+
 	printState(t->x);
 	printf("matches=%d\n", matches);
 	

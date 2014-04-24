@@ -20,7 +20,7 @@ let dop = {dec0 = -1; merge = (fun x y -> if x > y then x else y); cmp = Int.com
 
 let print_dfa_table oc {q0=q0;qs=qs} =
 	let state_num = Array.length qs in
-	fprintf oc "const unsigned char tidfa[%d] = {\n" (state_num * 256);
+	fprintf oc "const int tidfa[%d] = {\n" (state_num * 256);
 	let cnt = ref 0 in
 	let print_dfa_state oc q = 
 		(*fprintf oc "State id = %d\tDec=%d\n" q.id q.dec;*)
