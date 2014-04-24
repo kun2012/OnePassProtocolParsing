@@ -17,8 +17,6 @@
 #include <time.h>
 #include <sys/timeb.h>
 
-bool kdebug = false;
-
 //New state
 #define NEW_DFA_STATE_NUM 100000
 unsigned char tidfa_newtr[NEW_DFA_STATE_NUM][256];
@@ -100,6 +98,10 @@ int getStateQId(state& x) {
 	if (x.q == &state::CA26) return 126;
 	if (x.q == &state::CA27) return 127;
 	if (x.q == &state::CA28) return 128;
+	
+	if (x.q == &state::Act0) return 200;
+	if (x.q == &state::Act1) return 201;
+	if (x.q == &state::Act2) return 202;
 
 }
 
