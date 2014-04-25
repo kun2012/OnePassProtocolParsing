@@ -348,7 +348,7 @@ void get_subroutine_dfa() {
 	
 		while(lo <= hi) {
 		stateNode u = f[lo];
-		printStateNode(u);
+		//printStateNode(u);
 		
 		for (int i = 0; i < 256; i++) {
 			stateNode v = u;
@@ -413,11 +413,11 @@ void get_subroutine_dfa() {
 				}
 			}
 
-				printf("-----i=%d-----v--getfa(tidfa)=%d-\n", i, getfa(v.tidfa_q));
-				printStateNode(v);
+				//printf("-----i=%d-----v--getfa(tidfa)=%d-\n", i, getfa(v.tidfa_q));
+				//printStateNode(v);
 				
 			if (new_tidfa_accept[v.tidfa_q] != -1) {
-				printf("ACCEPT state.\n");
+				//printf("ACCEPT state.\n");
 				continue;
 			}
 			f[++hi] = v;
