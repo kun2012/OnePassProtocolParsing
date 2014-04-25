@@ -18,10 +18,12 @@
 #include <sys/timeb.h>
 
 //New state
-#define NEW_DFA_STATE_NUM 100000
+#define NEW_DFA_STATE_NUM 10000
 int tidfa_newtr[NEW_DFA_STATE_NUM][256];
 int new_tidfa_accept[NEW_DFA_STATE_NUM];
 int father[NEW_DFA_STATE_NUM];
+
+bool kdebug = false;
 
 int getfa(int x) {
 	if (x == father[x]) return x;
@@ -150,6 +152,19 @@ struct tsNode {
 };
 tsNode *tidfaState[NEW_DFA_STATE_NUM];
 
+struct transitionNode {
+	state st;
+	int matches;
+};
+
+transitionNode *tran_edge[NEW_DFA_STATE_NUM][256];
+
+void insert_tran_edge(int tidfa_q, int i, state &st, int matches) {
+	tran_edge[tidfa_q][i] = new transitionNode;
+	tran_edge[tidfa_q][i]->st = st;
+	tran_edge[tidfa_q][i]->matches = matches;
+}
+
 struct stateNode {
 	state st;
 	int tidfa_q, matches;
@@ -169,6 +184,15 @@ tsNode* findtiState(int k, stateNode& v) {
 	return q;
 }
 
+tsNode* findtiState_no_result(int k, stateNode& v) {
+	tsNode *q = tidfaState[k];
+	while (q != NULL) {
+		if ((q->matches == v.matches) && q->x.q == v.st.q && q->x.dfa_q == v.st.dfa_q)
+			return q;
+		q = q->next;
+	}
+	return q;
+}
 
 void printStateNode(stateNode &p) {
 	printf("\n----------------------------------\n");
@@ -217,9 +241,7 @@ inline void run_string(char s[], state& st) {
     CALL_MEMBER_FN(st, st.q)();
 }
 
-
-void reshape() {
-		
+void ready() {
 	for (int i = 0; i < tidfa_num; i++)
 		for (int j = 0; j < 256; j++)
 			tidfa_newtr[i][j] = tidfa[i << 8 | j];
@@ -230,11 +252,14 @@ void reshape() {
 	
 	for (int i = 0; i < tidfa_num; i++)
 		father[i] = i;
-		
+}
+
+void reshape() {
+
 	int lo = 0, hi = 0;
 	f[lo].tidfa_q = 0;
 	f[lo].matches = 0;
-	bool kdebug = false;
+
 	while(lo <= hi) {
 		stateNode u = f[lo];
 		if (kdebug) printStateNode(u);
@@ -297,9 +322,9 @@ void reshape() {
 				}
 			}
 			if (kdebug) {
-			printf("-----i=%d-----v--getfa(tidfa)=%d-\n", i, getfa(v.tidfa_q));
-			printStateNode(v);
-			printf("hhahah = %d", tidfa_newtr[v.tidfa_q][48]);
+				printf("-----i=%d-----v--getfa(tidfa)=%d-\n", i, getfa(v.tidfa_q));
+				printStateNode(v);
+				printf("hhahah = %d", tidfa_newtr[v.tidfa_q][48]);
 			}
 			if (new_tidfa_accept[v.tidfa_q] != -1) {
 				if (kdebug) printf("ACCEPT state.\n");
@@ -316,13 +341,108 @@ void reshape() {
 }
 
 
+void get_subroutine_dfa() {
+	int lo = 0, hi = 0;
+	f[lo].tidfa_q = 0;
+	f[lo].matches = 0;
+	
+		while(lo <= hi) {
+		stateNode u = f[lo];
+		printStateNode(u);
+		
+		for (int i = 0; i < 256; i++) {
+			stateNode v = u;
+			int tiq = v.tidfa_q;
+			matches = u.matches;
+			int new_tidfa_q = tidfa_newtr[tiq][i];
+			
+			if (new_tidfa_q == 1){
+				continue; //prune the self-recursive state of DFA. 
+			}
 
-int main(int argc, char** argv) {
-	if (argc < 2) {
-		printf("Usage: ./genTidfa parseFile\n");
-		return 0;
+			if (new_tidfa_q == 2 && tiq != 0) {
+				continue;   //prune the matching fail edge.
+			}
+			
+			v.tidfa_q = new_tidfa_q; 
+			run_fs(i, v.st);
+			
+			v.matches = matches;
+			
+			if (v.st.q == NULL) continue;
+			if (variablesExceed(v.st)) continue;
+
+			if (tidfaState[getfa(v.tidfa_q)] == NULL) {
+				if (getStateQId(u.st) != 100 && getStateQId(v.st) < 200 && u.st.q != v.st.q) { //catch difference between LPDFA except CA0 or Act states.
+					insert_tran_edge(u.tidfa_q, i, v.st, matches);
+					matches = 0;
+				}
+				
+				insert_tsNode(tidfaState[getfa(v.tidfa_q)], v.st, matches, v.tidfa_q);
+
+			} else {
+				tsNode *item = findtiState(getfa(v.tidfa_q), v);
+				if (item == NULL) {
+					if (getStateQId(u.st) != 100 && getStateQId(v.st) < 200 && u.st.q != v.st.q) { //catch difference between LPDFA except CA0 or Act states.
+						tsNode *t = findtiState_no_result(getfa(v.tidfa_q), v);
+						tidfa_newtr[tiq][i] = t->tidfa_q;
+						insert_tran_edge(u.tidfa_q, i, v.st, matches);
+						continue;
+					}
+
+					insert_tsNode(tidfaState[getfa(v.tidfa_q)], v.st, matches, tidfa_num); //this should be tidfa_num not v.tidfa_q
+
+					father[tidfa_num] = v.tidfa_q;
+				
+					for (int k = 0; k < 256; k++)
+						tidfa_newtr[tidfa_num][k] = tidfa_newtr[v.tidfa_q][k];
+					tidfa_newtr[tiq][i] = tidfa_num;
+					
+
+					if (new_tidfa_accept[v.tidfa_q] != -1) 
+						new_tidfa_accept[tidfa_num] = new_tidfa_accept[v.tidfa_q];
+					
+					v.tidfa_q = tidfa_num;
+					tidfa_num++;
+
+				}else {
+					//v.tidfa_q = item->tidfa_q; //FIX ME
+					tidfa_newtr[tiq][i] = item->tidfa_q;
+					continue;
+
+				}
+			}
+
+				printf("-----i=%d-----v--getfa(tidfa)=%d-\n", i, getfa(v.tidfa_q));
+				printStateNode(v);
+				
+			if (new_tidfa_accept[v.tidfa_q] != -1) {
+				printf("ACCEPT state.\n");
+				continue;
+			}
+			f[++hi] = v;
+		}
+		if (kdebug) printf("\n%d      %d\n", lo, tidfa_num);
+		lo++;
 	}
 	
+	printf("-------------------------@*@---------------------------------------\n");
+	return ;
+}
+char indata[5000];
+
+void input_packet_data(char* filename) {
+	FILE *fin = fopen(filename, "r");
+	char tmp[100];
+	int len = 100;
+	
+	while (fgets(tmp, len, fin) != NULL)
+		strcat(indata, tmp);
+	indata[strlen(indata) - 1] = '\0'; //fgets will get the CRLF character.
+}
+
+void test_reshape_algorithm() {
+
 	int num1 = tidfa_num;
 	
 	reshape();
@@ -330,27 +450,17 @@ int main(int argc, char** argv) {
 	int num2 = tidfa_num;
 	
 	printf("%d new states are needed!\n", num2 - num1);
-	
-	FILE *fin = fopen(argv[1], "r");
-	
-	char s[5000], tmp[100];
-	int len = 100;
-	
-	while (fgets(tmp, len, fin) != NULL)
-		strcat(s, tmp);
-	s[strlen(s) - 1] = '\0'; //fgets will get the CRLF character.
 
 	int p = 0;
 	int i = 0;
 	bool http_accept = false;
-	for (; i < strlen(s); i++) {
-		p = tidfa_newtr[p][s[i]];
+	for (; i < strlen(indata); i++) {
+		p = tidfa_newtr[p][indata[i]];
 		if (new_tidfa_accept[p] != -1) {
 			http_accept = true;
 			break;
 		}
 	}
-	//	return 0;
 	if (http_accept) i++;
 	printf("Tidfa accept state = %d\n", p);
 	printf("Character consump = %d\n", i);
@@ -362,7 +472,7 @@ int main(int argc, char** argv) {
 	}
 
 	matches = t->matches;
-	run_string(s + i, t->x);
+	run_string(indata + i, t->x);
 
 	printState(t->x);
 	printf("matches=%d\n", matches);
@@ -370,8 +480,8 @@ int main(int argc, char** argv) {
 	printf("----------------run all character all once---------------\n");
 	state st;
 	matches = 0;
-	st.flow_data_length = strlen(s);
-	st.flow_data = (const u_char*)s;
+	st.flow_data_length = strlen(indata);
+	st.flow_data = (const u_char*)indata;
   	while (st.fdpos < st.flow_data_length && st.q != NULL)
 		CALL_MEMBER_FN(st, st.q)();
 	printState(st);
@@ -380,10 +490,96 @@ int main(int argc, char** argv) {
 	printf("---------------run_fs function---------\n");
 	matches = 0;
 	state st1;
-	for (int j = 0; j < strlen(s); j++)
-		run_fs(s[j], st1);
+	for (int j = 0; j < strlen(indata); j++)
+		run_fs(indata[j], st1);
 	printState(st1);
 	
 	printf("matches=%d\n", matches);
+	
+	return ;
+}
+
+void set_result(state &src, state &dst) {
+	if (dst.v0 == 0 && src.v0 != 0) dst.v0 = src.v0;	
+	if (dst.v1 == 0 && src.v1 != 0) dst.v0 = src.v1;
+	if (dst.v2 == 0 && src.v2 != 0) dst.v0 = src.v2;
+	if (dst.v3 == 0 && src.v3 != 0) dst.v0 = src.v3;
+	if (dst.v4 == 0 && src.v4 != 0) dst.v0 = src.v4;
+	if (dst.v5 == 0 && src.v5 != 0) dst.v0 = src.v5;
+	if (dst.v6 == 0 && src.v6 != 0) dst.v0 = src.v6;
+	if (dst.v7 == 0 && src.v7 != 0) dst.v0 = src.v7;
+	if (dst.v8 == 0 && src.v8 != 0) dst.v0 = src.v8;
+	if (dst.v9 == 0 && src.v9 != 0) dst.v0 = src.v9;
+}
+
+void test_subroutine_dfa_algorithm() {
+	int num1 = tidfa_num;
+	get_subroutine_dfa();
+	int num2 = tidfa_num;
+	printf("%d new states are needed!\n", num2 - num1);
+	
+	
+		int p = 0;
+	int i = 0;
+	bool http_accept = false;
+	state midst;
+	int mid_matches = 0;
+	
+	for (; i < strlen(indata); i++) {
+		char c = indata[i];
+		if (tran_edge[p][c] != NULL) {
+			mid_matches += tran_edge[p][c]->matches;
+			set_result(tran_edge[p][c]->st, midst);
+		}
+		
+		p = tidfa_newtr[p][c];
+		
+		if (new_tidfa_accept[p] != -1) {
+			http_accept = true;
+			break;
+		}
+	}
+	if (http_accept) i++;
+	printf("Tidfa accept state = %d\n", p);
+	printf("Character consump = %d\n", i);
+	
+	tsNode *t = tidfaState[getfa(p)];
+	while(t != NULL) {
+		if (t->tidfa_q == p) break;
+		t = t->next;
+	}
+	set_result(midst, t->x);
+	matches = t->matches + mid_matches;
+	run_string(indata + i, t->x);
+
+	printState(t->x);
+	printf("matches=%d\n", matches);
+	
+	printf("----------------run all character all once---------------\n");
+	state st;
+	matches = 0;
+	st.flow_data_length = strlen(indata);
+	st.flow_data = (const u_char*)indata;
+  	while (st.fdpos < st.flow_data_length && st.q != NULL)
+		CALL_MEMBER_FN(st, st.q)();
+	printState(st);
+	printf("matches=%d\n", matches);
+	
+}
+
+int main(int argc, char** argv) {
+	if (argc < 2) {
+		printf("Usage: ./genTidfa parseFile\n");
+		return 0;
+	}
+	
+	input_packet_data(argv[1]);
+	
+	ready();
+	
+	//test_reshape_algorithm();
+	
+	test_subroutine_dfa_algorithm();
+	
 	return 0;
 }
